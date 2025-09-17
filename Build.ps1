@@ -35,7 +35,7 @@ param(
 function Get-Script ([string]$prop) {
     $ThisFile = $script:MyInvocation.MyCommand.Path
     return ((Get-Item $ThisFile) | select $prop).$prop
-}S
+}
 
 $ScriptPath = split-path $script:MyInvocation.MyCommand.Path
 $ScriptFullName = (Get-Item -Path $script:MyInvocation.MyCommand.Path).DirectoryName
@@ -476,7 +476,7 @@ function Get-FunctionDocUrl(`$Name){{
 
     $ModuleVersion = Get-ZBookModuleVersion
 
-    Set-ZBookAutoUpdateOverride -Enable $True
+    Set-ZBookHardwareAutoUpdateOverride -Enable $True
 
     if ($Type -eq 'min') {
         . "$BuildScriptPath" -NoUpdateVersion -SkipImport
@@ -494,7 +494,7 @@ function Get-FunctionDocUrl(`$Name){{
         make -SkipImport -Deploy -Publish -NoUpdateVersion
     }
 
-    Set-ZBookAutoUpdateOverride -Enable $False
+    Set-ZBookHardwareAutoUpdateOverride -Enable $False
 
 
 
