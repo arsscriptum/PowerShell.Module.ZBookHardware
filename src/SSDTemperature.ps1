@@ -43,6 +43,11 @@ function Get-SSDTemperature {
 function Get-SystemTemperatureC {
     [CmdletBinding()]
     param()
+        #This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
+    if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
+        Invoke-LastCommandAsAdmin "$($MyInvocation.Line)"
+        return
+    }
     $temps = @()
     try {
         # Use Get-WmiObject for PS 5.x, Get-CimInstance for Core/7+ if available

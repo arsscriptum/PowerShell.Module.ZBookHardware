@@ -8,7 +8,6 @@
 #╚════════════════════════════════════════════════════════════════════════════════╝
 
 
-
 function Get-ZBookModuleVersion {
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -46,3 +45,11 @@ function Get-ZBookModuleVersion {
     return $Version
 }
 
+function Get-ZBookHardwareModuleVersion {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory = $false)]
+        [switch]$Latest
+    )
+    return Get-ZBookModuleVersion -Latest:$LAtest
+}

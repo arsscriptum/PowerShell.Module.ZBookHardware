@@ -45,3 +45,12 @@ function Get-ZBookModuleVersion {
     $Version = "___MODULE_VERSION_STRING____"
     return $Version
 }
+
+function Get-ZBookHardwareModuleVersion {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory = $false)]
+        [switch]$Latest
+    )
+    return Get-ZBookModuleVersion -Latest:$LAtest
+}
