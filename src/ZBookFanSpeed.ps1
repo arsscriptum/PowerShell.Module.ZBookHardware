@@ -19,11 +19,13 @@ function Invoke-LastCommandAsAdmin {
         [Parameter(Mandatory, Position = 0)]
         [string]$CommandString
     )
-    Write-Host "You didn't run this script as an Administrator. This script will self elevate to run as an Administrator and continue."
-    Start-Sleep 1
     $TmpFile = (New-TemporaryFile).FullName
     $TmpFilePS1 = (New-TemporaryFile).FullName + '.ps1'
     Move-Item $TmpFile $TmpFilePS1
+
+    Write-Host "You didn't run this script as an Administrator. This script will self elevate to run as an Administrator and continue [$TmpFilePS1]"
+    Start-Sleep 1
+    
 
     $stdout = [System.IO.Path]::GetTempFileName()
     $stderr = [System.IO.Path]::GetTempFileName()
