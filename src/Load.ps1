@@ -523,25 +523,26 @@ function Show-TempHistory {
             default { "Magenta" }
         }
     }
+    $WindowSize = 20
 
     while ($true) {
         $sysTemps = Get-SystemTemperatureC
         $ssdTemp = Get-SSDTemperature
-
+ 
         foreach ($row in $sysTemps) {
             $name = $row.Sensor
             $val = [math]::Round($row.TempC, 1)
             if (-not $history.ContainsKey($name)) { $history[$name] = @() }
             $history[$name] += $val
-            if ($history[$name].Count -gt 10) { $history[$name] = $history[$name][-10..-1] }
+            if ($history[$name].Count -gt $WindowSize) { $history[$name] = $history[$name][-$WindowSize..-1] }
         }
 
         if (-not $history.ContainsKey($ssdKey)) { $history[$ssdKey] = @() }
         $history[$ssdKey] += [int]$ssdTemp
-        if ($history[$ssdKey].Count -gt 10) { $history[$ssdKey] = $history[$ssdKey][-10..-1] }
+        if ($history[$ssdKey].Count -gt $WindowSize) { $history[$ssdKey] = $history[$ssdKey][-$WindowSize..-1] }
 
         Clear-Host
-        Write-Host ("Name".PadRight(16) + "Last 10".PadRight(34))
+        Write-Host ("Name".PadRight(16) + "Last $WindowSize".PadRight(34))
         Write-Host ("-" * 50)
         foreach ($name in $history.Keys) {
             Write-Host ($name.Replace('ACPI\ThermalZone\','').PadRight(14)) -NoNewline
