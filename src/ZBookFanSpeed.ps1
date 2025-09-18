@@ -102,11 +102,11 @@ function Get-ZBookFanSpeed {
             Write-Verbose "Current fan speed: $($FanSpeedMap[$hex]) ($hex)"
             return $FanSpeedMap[$hex]
         } else {
-            Write-Warning "Current fan register value: 0x$hex (not in enum map)" -ForegroundColor Yellow
+            Write-Warning "Current fan register value: 0x$hex (not in enum map)"
             return $hex
         }
     } else {
-        Write-Error "[ERROR] Failed to read current value from register $regStr" -ForegroundColor Red
+        Write-Error "[ERROR] Failed to read current value from register $regStr" 
     }
 }
 
