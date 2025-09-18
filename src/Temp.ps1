@@ -64,7 +64,24 @@ function New-TempDeamon {
         $User = "$env:USERDOMAIN\$env:USERNAME" # Or just $env:USERNAME if no domain
         $pwshPath = (Get-Command pwsh.exe).Source
         $encodedCommand = 'SQBtAHAAbwByAHQALQBNAG8AZAB1AGwAZQAgACIAQwA6AFwAVQBzAGUAcgBzAFwAZwBwAFwARABvAGMAdQBtAGUAbgB0AHMAXABQAG8AdwBlAHIAUwBoAGUAbABsAFwATQBvAGQAdQBsAGUAcwBcAFAAbwB3AGUAcgBTAGgAZQBsAGwALgBNAG8AZAB1AGwAZQAuAFoAQgBvAG8AawBIAGEAcgBkAHcAYQByAGUAXABQAG8AdwBlAHIAUwBoAGUAbABsAC4ATQBvAGQAdQBsAGUALgBaAEIAbwBvAGsASABhAHIAZAB3AGEAcgBlAC4AcABzAGQAMQAiACAALQBGAG8AcgBjAGUADQAKAFQAZQBzAHQALQBDAGgAZQBjAGsAVABlAG0AcABlAHIAYQB0AHUAcgBlAFQAaAByAGUAcwBoAG8AbABkAA=='
-        $Action = New-ScheduledTaskAction -Execute $pwshPath -Argument "-ExecutionPolicy Bypass -encodedcommand `"$encodedCommand`""
+        #$Action = New-ScheduledTaskAction -Execute $pwshPath -Argument "-ExecutionPolicy Bypass -encodedcommand `"$encodedCommand`""
+
+        [string]$VBSFile = Join-Path "$folder" "hidden_powershell.vbs"
+        [string]$VBSContent = @"
+Set objShell = CreateObject("WScript.Shell")
+objShell.Run "pwsh.exe -ExecutionPolicy Bypass -EncodedCommand $encodedCommand", 0, False
+"@
+
+        [string]$ArgumentString = "-WindowStyle Hidden -ExecutionPolicy Bypass -EncodedCommand {0}" -f $encodedCommand
+        Write-host "Create Scheduled Task with Base64 Encoded Command"
+
+
+        New-Item -Path "$VBSFile" -ItemType File -Value "$VBSContent" -Force | Out-Null
+
+        Write-Host "Create a Scheduled Task to Run the VBS Script"
+        $WScriptCmd = Get-Command -Name "wscript.exe" -CommandType Application -ErrorAction Stop
+        $WScriptBin = $WScriptCmd.Source
+        $Action = New-ScheduledTaskAction -Execute "$WScriptBin" -Argument "$VBSFile"
 
         # 1. Timer trigger (every 5 min, starts after login)
         $TimerTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 9125)
@@ -74,7 +91,7 @@ function New-TempDeamon {
 
         $Principal = New-ScheduledTaskPrincipal -UserId $User -LogonType Interactive -RunLevel Highest
 
-        Register-ScheduledTask -TaskName "TestZBookTemperature2" -Action $Action -Trigger @($TimerTrigger, $LogonTrigger) -Principal $Principal -Description "Checks ZBook temperature every 5 minutes and at logon (interactive, PowerShell Core)"
+        Register-ScheduledTask -TaskName "ZBookTemperature" -Action $Action -Trigger @($TimerTrigger, $LogonTrigger) -Principal $Principal -Description "Checks ZBook temperature every 5 minutes and at logon (interactive, PowerShell Core)"
 
     } catch {
         Write-Error "$_"
@@ -198,7 +215,7 @@ function Test-CheckTemperatureThreshold {
     $ZBookMaxTemp = Get-ZBookMaxTemp
     Write-TempLog "[Test-CheckTemperatureThreshold] ZBookMaxTemp $ZBookMaxTemp"
 
-    $HigherTemp = if($SystemTemperatureC -gt $SSDTemperature){$SystemTemperatureC}else{$SSDTemperature}
+    $HigherTemp = if ($SystemTemperatureC -gt $SSDTemperature) { $SystemTemperatureC } else { $SSDTemperature }
     Write-TempLog "[Test-CheckTemperatureThreshold] HigherTemp $HigherTemp"
     # Get the current temperature
 
@@ -207,6 +224,6 @@ function Test-CheckTemperatureThreshold {
     if ($HigherTemp -ge $ZBookMaxTemp) {
         Write-TempLog "Invoke-StartWarningTask $HigherTemp"
         Invoke-StartWarningTask $HigherTemp
-       
+
     }
 }
