@@ -66,7 +66,7 @@ function New-TempDeamon {
         $encodedCommand = 'SQBtAHAAbwByAHQALQBNAG8AZAB1AGwAZQAgACIAQwA6AFwAVQBzAGUAcgBzAFwAZwBwAFwARABvAGMAdQBtAGUAbgB0AHMAXABQAG8AdwBlAHIAUwBoAGUAbABsAFwATQBvAGQAdQBsAGUAcwBcAFAAbwB3AGUAcgBTAGgAZQBsAGwALgBNAG8AZAB1AGwAZQAuAFoAQgBvAG8AawBIAGEAcgBkAHcAYQByAGUAXABQAG8AdwBlAHIAUwBoAGUAbABsAC4ATQBvAGQAdQBsAGUALgBaAEIAbwBvAGsASABhAHIAZAB3AGEAcgBlAC4AcABzAGQAMQAiACAALQBGAG8AcgBjAGUADQAKAFQAZQBzAHQALQBDAGgAZQBjAGsAVABlAG0AcABlAHIAYQB0AHUAcgBlAFQAaAByAGUAcwBoAG8AbABkAA=='
         #$Action = New-ScheduledTaskAction -Execute $pwshPath -Argument "-ExecutionPolicy Bypass -encodedcommand `"$encodedCommand`""
 
-        [string]$VBSFile = Join-Path "$folder" "hidden_powershell.vbs"
+        [string]$VBSFile = Join-Path "c:\tmp" "hidden_powershell.vbs"
         [string]$VBSContent = @"
 Set objShell = CreateObject("WScript.Shell")
 objShell.Run "pwsh.exe -ExecutionPolicy Bypass -EncodedCommand $encodedCommand", 0, False
