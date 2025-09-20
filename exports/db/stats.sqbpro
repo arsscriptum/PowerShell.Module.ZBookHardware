@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="stats.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="0"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="2967"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="hosts" custom_title="0" dock_id="1" table="4,5:mainhosts"/><dock_state state="000000ff00000000fd0000000100000002000002480000020cfc0100000001fb000000160064006f0063006b00420072006f00770073006500310100000000000002480000011e00ffffff000002480000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1*">-- Enable FK integrity and good defaults
+PRAGMA foreign_keys = ON;
+PRAGMA journal_mode  = WAL;
+
+-- =========================
+-- Core dimensions
+-- =========================
+
+-- Machines you collect from (host, VM, container, etc.)
+CREATE TABLE IF NOT EXISTS hosts (
+  host_id       INTEGER PRIMARY KEY,
+  hostname      TEXT NOT NULL,
+  machine_guid  TEXT,                -- optional stable ID if you have one
+  created_at    INTEGER NOT NULL DEFAULT (unixepoch('now')),
+  UNIQUE(hostname)
+);
+
+-- Optional logical grouping per run/collection window (use if you want to
+-- bundle samples by job/execution; otherwise you can ignore this table).
+CREATE TABLE IF NOT EXISTS sessions (
+  session_id    INTEGER PRIMARY KEY,
+  host_id       INTEGER NOT NULL REFERENCES hosts(host_id) ON DELETE CASCADE,
+  source        TEXT,                -- e.g., &quot;OpenHardwareMonitor&quot;, &quot;WMI&quot;
+  version       TEXT,                -- data schema or tool version
+  started_at    INTEGER NOT NULL DEFAULT (unixepoch('now')),
+  note          TEXT
+);
+
+-- A sensor is a stable identity: (host + category + label + unit).
+-- Examples:
+--   category=&quot;Load&quot;,        label=&quot;CPU Core #2&quot;, unit=&quot;%&quot;
+--   category=&quot;Temperatures&quot;,label=&quot;CPU Package&quot;, unit=&quot;°C&quot;
+CREATE TABLE IF NOT EXISTS sensors (
+  sensor_id     INTEGER PRIMARY KEY,
+  host_id       INTEGER NOT NULL REFERENCES hosts(host_id) ON DELETE CASCADE,
+  category      TEXT NOT NULL,       -- e.g., &quot;Load&quot;, &quot;Temperatures&quot;, &quot;Fan&quot;, &quot;Used Space&quot;
+  label         TEXT NOT NULL,       -- e.g., &quot;CPU Total&quot;, &quot;Memory&quot;, &quot;GPU Core&quot;
+  unit          TEXT NOT NULL,       -- e.g., &quot;%&quot;, &quot;°C&quot;, &quot;rpm&quot;, &quot;GB&quot;
+  meta_json     TEXT,                -- optional: store original IDs/paths
+  created_at    INTEGER NOT NULL DEFAULT (unixepoch('now')),
+  last_seen_at  INTEGER,
+  UNIQUE(host_id, category, label, unit)
+);
+
+CREATE INDEX IF NOT EXISTS ix_sensors_host ON sensors(host_id);
+CREATE INDEX IF NOT EXISTS ix_sensors_cat_label ON sensors(category, label);
+
+-- =========================
+-- Fact table (time-series)
+-- =========================
+
+-- One row per observation.
+-- 'value' is the instantaneous reading.
+-- 'min_value'/'max_value' are whatever window your source reports (often since tool start);
+-- keep them to mirror the source, but analytics should usually compute min/max over time from 'value'.
+CREATE TABLE IF NOT EXISTS readings (
+  reading_id    INTEGER PRIMARY KEY,
+  sensor_id     INTEGER NOT NULL REFERENCES sensors(sensor_id) ON DELETE CASCADE,
+  session_id    INTEGER REFERENCES sessions(session_id) ON DELETE SET NULL,
+  collected_at  INTEGER NOT NULL,    -- unix epoch seconds
+  value         REAL    NOT NULL,    -- e.g., 8.0
+  min_value     REAL,                -- e.g., 0.0
+  max_value     REAL,                -- e.g., 90.6
+  source_raw    TEXT,                -- optional: raw line/JSON fragment
+  CHECK (value IS NULL OR typeof(value) IN ('real','integer'))
+);
+
+CREATE INDEX IF NOT EXISTS ix_readings_sensor_time ON readings(sensor_id, collected_at DESC);
+CREATE INDEX IF NOT EXISTS ix_readings_time ON readings(collected_at);
+
+-- =========================
+-- Helpers
+-- =========================
+
+-- Keep sensors.last_seen_at fresh when inserting readings
+CREATE TRIGGER IF NOT EXISTS trg_readings_touch_sensor
+AFTER INSERT ON readings
+BEGIN
+  UPDATE sensors
+  SET last_seen_at = NEW.collected_at
+  WHERE sensor_id = NEW.sensor_id;
+END;
+
+-- =========================
+-- Convenience views
+-- =========================
+
+-- Latest reading per sensor (fast “current values” view)
+CREATE VIEW IF NOT EXISTS vw_latest_readings AS
+WITH latest AS (
+  SELECT r.sensor_id, MAX(r.collected_at) AS max_ts
+  FROM readings r
+  GROUP BY r.sensor_id
+)
+SELECT s.sensor_id,
+       s.host_id,
+       s.category,
+       s.label,
+       s.unit,
+       r.value,
+       r.min_value,
+       r.max_value,
+       r.collected_at
+FROM sensors s
+JOIN latest  lt ON lt.sensor_id = s.sensor_id
+JOIN readings r ON r.sensor_id = lt.sensor_id AND r.collected_at = lt.max_ts;
+
+-- Recent CPU/GPU loads (example slice)
+CREATE VIEW IF NOT EXISTS vw_recent_loads AS
+SELECT s.label, r.value, r.collected_at
+FROM sensors s
+JOIN readings r ON r.sensor_id = s.sensor_id
+WHERE s.category = 'Load' AND s.unit = '%';
+</sql><current_tab id="0"/></tab_sql></sqlb_project>
